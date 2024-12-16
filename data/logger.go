@@ -18,7 +18,6 @@ type Logger struct {
 	emptyFile bool
 }
 
-// func NewLogger(filepath string, logType LogType) (Logger, error) {
 func NewLogger(filepath string, engine ILog) (Logger, error) {
 	root := path.Dir(filepath)
 	err := os.MkdirAll(root, 0644)

@@ -1,3 +1,0 @@
-processes = ["Files.exe"]
-log_file = "./log/watchdog.log"
-refresh_seconds = 3
