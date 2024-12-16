@@ -5,9 +5,6 @@ import (
 	"slices"
 	"time"
 	"watchdog-go/data"
-	engines "watchdog-go/log_engines"
-
-	"github.com/shirou/gopsutil/v4/process"
 )
 
 type App struct {
@@ -15,59 +12,30 @@ type App struct {
 	logger   data.Logger
 }
 
-func processExists(pid int32) bool {
-	exists, err := process.PidExists(pid)
-	if err != nil {
-		log.Fatalf("error getting process by PID: %v", err)
-	}
-
-	return exists
-}
-
-func logEventItem(logger data.Logger, procItem data.ProcessItem, event string) {
-	err := logger.Log(procItem.GetLogItem(event))
-	if err != nil {
-		log.Fatalf("error saving log to log file: %v", err)
-	}
-}
-
 func main() {
-	settings, err := ParseSettings("settings.toml")
-	if err != nil {
-		log.Fatalf("error parsing settings.toml file: %v", err)
-	}
-
-	logger, err := data.NewLogger(settings.LogFile, &engines.CsvLoggerEngine{})
-	if err != nil {
-		log.Fatalf("error creating logger instance: %v", err)
-	}
-	defer logger.Close()
-
-	app := App{
-		settings: settings,
-		logger:   logger,
-	}
+	app := App{}
+	app.settings = getSettings()
+	app.logger = getLogger(app.settings.LogFile)
+	defer app.logger.Close()
 
 	log.Println("Starting watchdog ...")
 
-	caughtProcesses := map[int32]*data.ProcessItem{}
+	runningProcesses := map[int32]*data.ProcessItem{}
 
 	for {
 		// loop over saved processes and log if ended
-		for _, savedProc := range caughtProcesses {
+		for _, savedProc := range runningProcesses {
 			if exists := processExists(savedProc.Pid); exists {
 				continue
 			}
 
 			logEventItem(app.logger, *savedProc, "end")
-			delete(caughtProcesses, savedProc.Pid)
+
+			delete(runningProcesses, savedProc.Pid)
 		}
 
-		// l oop over refreshed processes and log if started
-		procs, err := process.Processes()
-		if err != nil {
-			log.Fatalf("error fetching processes: %v", err)
-		}
+		// loop over refreshed processes and log if started
+		procs := getRunningProcesses()
 
 		for _, proc := range procs {
 			name, err := proc.Name()
@@ -81,19 +49,15 @@ func main() {
 			}
 
 			// check if already in caught processes
-			if _, ok := caughtProcesses[proc.Pid]; ok {
+			if _, ok := runningProcesses[proc.Pid]; ok {
 				continue
 			}
 
 			prItem := data.NewProcessItem(proc)
 
-			// add NEW proc to caught processes
-			caughtProcesses[proc.Pid] = &prItem
+			runningProcesses[proc.Pid] = &prItem
 
-			err = app.logger.Log(prItem.GetLogItem("start"))
-			if err != nil {
-				log.Fatalf("error saving log to log file: %v", err)
-			}
+			logEventItem(app.logger, prItem, "start")
 		}
 
 		time.Sleep(time.Duration(app.settings.RefreshSeconds) * time.Second)
