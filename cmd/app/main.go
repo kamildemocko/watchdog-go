@@ -15,6 +15,22 @@ type App struct {
 	logger   data.Logger
 }
 
+func processExists(pid int32) bool {
+	exists, err := process.PidExists(pid)
+	if err != nil {
+		log.Fatalf("error getting process by PID: %v", err)
+	}
+
+	return exists
+}
+
+func logEventItem(logger data.Logger, procItem data.ProcessItem, event string) {
+	err := logger.Log(procItem.GetLogItem(event))
+	if err != nil {
+		log.Fatalf("error saving log to log file: %v", err)
+	}
+}
+
 func main() {
 	settings, err := ParseSettings("settings.toml")
 	if err != nil {
@@ -39,21 +55,15 @@ func main() {
 	for {
 		// loop over saved processes and log if ended
 		for _, savedProc := range caughtProcesses {
-			exists, err := process.PidExists(savedProc.Pid)
-			if err != nil {
-				log.Fatalf("error getting process by PID: %v", err)
+			if exists := processExists(savedProc.Pid); exists {
+				continue
 			}
 
-			if !exists {
-				err = app.logger.Log(savedProc.GetLogItem("end"))
-				if err != nil {
-					log.Fatalf("error saving log to log file: %v", err)
-				}
-
-				delete(caughtProcesses, savedProc.Pid)
-			}
+			logEventItem(app.logger, *savedProc, "end")
+			delete(caughtProcesses, savedProc.Pid)
 		}
 
+		// l oop over refreshed processes and log if started
 		procs, err := process.Processes()
 		if err != nil {
 			log.Fatalf("error fetching processes: %v", err)
