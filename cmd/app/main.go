@@ -9,7 +9,7 @@ import (
 
 type App struct {
 	settings Settings
-	logger   data.Logger
+	logger   *data.Logger
 }
 
 func main() {

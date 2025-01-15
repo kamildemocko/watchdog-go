@@ -17,7 +17,7 @@ func getSettings() Settings {
 	return settings
 }
 
-func getLogger(logFilepath string) data.Logger {
+func getLogger(logFilepath string) *data.Logger {
 	logger, err := data.NewLogger(logFilepath, &engines.CsvLoggerEngine{})
 	if err != nil {
 		log.Fatalf("error creating logger instance: %v", err)
@@ -44,7 +44,7 @@ func processExists(pid int32) bool {
 	return exists
 }
 
-func logEventItem(logger data.Logger, procItem data.ProcessItem, event string) {
+func logEventItem(logger *data.Logger, procItem data.ProcessItem, event string) {
 	err := logger.Log(procItem.GetLogItem(event))
 	if err != nil {
 		log.Fatalf("error saving log to log file: %v", err)

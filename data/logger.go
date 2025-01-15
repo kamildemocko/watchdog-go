@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"log"
 	"os"
 	"path"
 )
@@ -18,11 +19,11 @@ type Logger struct {
 	emptyFile bool
 }
 
-func NewLogger(filepath string, engine ILog) (Logger, error) {
+func NewLogger(filepath string, engine ILog) (*Logger, error) {
 	root := path.Dir(filepath)
 	err := os.MkdirAll(root, 0644)
 	if err != nil {
-		return Logger{}, err
+		return &Logger{}, err
 	}
 
 	emptyFile := false
@@ -32,10 +33,10 @@ func NewLogger(filepath string, engine ILog) (Logger, error) {
 
 	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
-		return Logger{}, err
+		return &Logger{}, err
 	}
 
-	return Logger{
+	return &Logger{
 			filepath,
 			engine,
 			file,
@@ -49,6 +50,8 @@ func (li *Logger) Close() {
 }
 
 func (li *Logger) Log(logItem LogItem) error {
+	log.Println("logging PID ", logItem.Pid)
+
 	var err error
 	if li.emptyFile {
 		err = li.Engine.AppendToEmptyFile(li.file, &logItem)
